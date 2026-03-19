@@ -2,10 +2,12 @@
 
 import { REGIONS } from "@/lib/regionalData";
 import { Rating, RegionData } from "@/lib/types";
+import { LiveRegionState } from "@/lib/useLiveGridData";
 import clsx from "clsx";
 
 interface Props {
   currentRegionId: string;
+  liveData?: Record<string, LiveRegionState>;
 }
 
 const RATING_META: Record<Rating, { dot: string; bar: string; badge: string }> = {
@@ -33,10 +35,13 @@ function SectionDivider({ label }: { label: string }) {
   );
 }
 
-function RegionRow({ region, isActive }: { region: RegionData; isActive: boolean }) {
+function RegionRow({ region, isActive, live }: { region: RegionData; isActive: boolean; live?: LiveRegionState }) {
   const meta = RATING_META[region.rating];
-  const barPct = Math.round((region.gridIntensityGCO2 / MAX_INTENSITY) * 100);
+  const displayIntensity = live?.gridIntensityGCO2 ?? region.gridIntensityGCO2;
+  const barPct = Math.round((displayIntensity / MAX_INTENSITY) * 100);
   const cityOnly = region.displayName.split(" (")[0];
+  const trendIcon = live?.trend === "up" ? " ↑" : live?.trend === "down" ? " ↓" : "";
+  const trendCls = live?.trend === "up" ? "text-red-500" : live?.trend === "down" ? "text-green-600" : "";
 
   return (
     <tr className={clsx("border-b border-gray-50 transition-colors", isActive ? "bg-green-50/80" : "hover:bg-gray-50")}>
@@ -50,7 +55,10 @@ function RegionRow({ region, isActive }: { region: RegionData; isActive: boolean
         </div>
       </td>
       <td className="px-4 py-2.5 text-right">
-        <span className="text-[12px] font-semibold text-gray-800 tabular-nums">{region.gridIntensityGCO2}</span>
+        <span className="text-[12px] font-semibold text-gray-800 tabular-nums">{displayIntensity}</span>
+        {live && trendIcon && (
+          <span className={clsx("text-[10px] font-bold ml-0.5", trendCls)}>{trendIcon}</span>
+        )}
       </td>
       <td className="px-3 py-2.5">
         <div className="flex items-center justify-center gap-1.5">
@@ -67,8 +75,10 @@ function RegionRow({ region, isActive }: { region: RegionData; isActive: boolean
   );
 }
 
-export default function RegionTable({ currentRegionId }: Props) {
+export default function RegionTable({ currentRegionId, liveData }: Props) {
   const currentRegion = REGIONS.find((r) => r.id === currentRegionId);
+  const currentLive = currentRegionId && liveData ? liveData[currentRegionId] : undefined;
+  const displayIntensity = currentLive?.gridIntensityGCO2 ?? currentRegion?.gridIntensityGCO2;
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col h-[520px]">
@@ -78,7 +88,15 @@ export default function RegionTable({ currentRegionId }: Props) {
           <p className="text-[12px] font-semibold text-gray-900">Region carbon intensity</p>
           {currentRegion && (
             <p className="text-[10px] text-gray-400 mt-0.5">
-              {currentRegion.displayName.split(" (")[0]} &mdash; {currentRegion.gridIntensityGCO2} gCO₂/kWh
+              {currentRegion.displayName.split(" (")[0]} &mdash;{" "}
+              <span className={currentLive?.trend === "up" ? "text-red-500" : currentLive?.trend === "down" ? "text-green-600" : ""}>
+                {displayIntensity} gCO₂/kWh
+              </span>
+              {currentLive && currentLive.trend !== "flat" && (
+                <span className={currentLive.trend === "up" ? "text-red-500" : "text-green-600"}>
+                  {currentLive.trend === "up" ? " ↑" : " ↓"}
+                </span>
+              )}
             </p>
           )}
         </div>
@@ -101,11 +119,11 @@ export default function RegionTable({ currentRegionId }: Props) {
           <tbody>
             <SectionDivider label="Indian Data Centers" />
             {INDIAN.map((r) => (
-              <RegionRow key={r.id} region={r} isActive={r.id === currentRegionId} />
+              <RegionRow key={r.id} region={r} isActive={r.id === currentRegionId} live={liveData?.[r.id]} />
             ))}
             <SectionDivider label="Global Comparisons" />
             {GLOBAL.map((r) => (
-              <RegionRow key={r.id} region={r} isActive={r.id === currentRegionId} />
+              <RegionRow key={r.id} region={r} isActive={r.id === currentRegionId} live={liveData?.[r.id]} />
             ))}
           </tbody>
         </table>

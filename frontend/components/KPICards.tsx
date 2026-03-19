@@ -1,7 +1,8 @@
 "use client";
 
 import { CalculationResult } from "@/lib/types";
-import { Zap, CloudRain, Droplets, TreePine } from "lucide-react";
+import { Zap, CloudRain, Droplets, TreePine, IndianRupee } from "lucide-react";
+import { carbonCostINR } from "@/lib/calculations";
 import clsx from "clsx";
 
 interface Props {
@@ -55,11 +56,20 @@ const CARDS: CardDef[] = [
     value: (r) => r.treesOffset.toFixed(1),
     unit: "trees/yr",
   },
+  {
+    title: "Carbon Cost",
+    subtitle: "Shadow tax · ₹750/tonne",
+    icon: <IndianRupee size={16} />,
+    iconBg: "bg-rose-50",
+    iconColor: "text-rose-500",
+    value: (r) => Math.round(carbonCostINR(r.totalCarbonKgCO2e)).toLocaleString(),
+    unit: "₹",
+  },
 ];
 
 export default function KPICards({ result }: Props) {
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
       {CARDS.map((card) => (
         <div
           key={card.title}
