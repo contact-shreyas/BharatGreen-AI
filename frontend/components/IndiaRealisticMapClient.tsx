@@ -47,6 +47,8 @@ interface DistrictPolygonCollection {
   features: DistrictPolygonFeature[];
 }
 
+type JoinProvenance = "exact" | "fuzzy" | "state-estimated";
+
 type SortKey = "district" | "state" | "gridIntensityGCO2" | "level" | "zone" | "source";
 type SortDir = "asc" | "desc";
 
@@ -112,9 +114,21 @@ function normalizeName(name: string): string {
   return name
     .toLowerCase()
     .replace(/district/g, "")
+    .replace(/\b(city|municipal|corporation|rural|urban|zone|division)\b/g, "")
     .replace(/[^a-z0-9 ]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function tokenOverlapScore(a: string, b: string): number {
+  const aTokens = new Set(a.split(" ").filter(Boolean));
+  const bTokens = new Set(b.split(" ").filter(Boolean));
+  if (!aTokens.size || !bTokens.size) return 0;
+  let hit = 0;
+  aTokens.forEach((t) => {
+    if (bTokens.has(t)) hit += 1;
+  });
+  return hit / Math.max(aTokens.size, bTokens.size);
 }
 
 function colorForIntensity(intensity: number): string {
@@ -187,6 +201,71 @@ export default function IndiaRealisticMapClient({ selectedRegionId, onSelectRegi
     return map;
   }, [districts]);
 
+  const districtsByState = useMemo(() => {
+    const map = new Map<string, DistrictLiveRecord[]>();
+    districts.forEach((d) => {
+      const key = normalizeName(d.state);
+      const curr = map.get(key);
+      if (curr) curr.push(d);
+      else map.set(key, [d]);
+    });
+    return map;
+  }, [districts]);
+
+  const stateAverageIntensity = useMemo(() => {
+    const totals = new Map<string, { sum: number; count: number }>();
+    districts.forEach((d) => {
+      const key = normalizeName(d.state);
+      const curr = totals.get(key) || { sum: 0, count: 0 };
+      curr.sum += d.gridIntensityGCO2;
+      curr.count += 1;
+      totals.set(key, curr);
+    });
+    const avg = new Map<string, number>();
+    totals.forEach((v, k) => {
+      avg.set(k, Math.round(v.sum / Math.max(1, v.count)));
+    });
+    return avg;
+  }, [districts]);
+
+  const resolveDistrictRecord = (
+    stateNameRaw: string,
+    districtNameRaw: string
+  ): { record?: DistrictLiveRecord; provenance: JoinProvenance } => {
+    const nState = normalizeName(stateNameRaw);
+    const nDistrict = normalizeName(districtNameRaw);
+    if (!nDistrict) return { provenance: "state-estimated" };
+
+    const exact = districtByName.get(`${nState}|${nDistrict}`) || districtByName.get(nDistrict);
+    if (exact) return { record: exact, provenance: "exact" };
+
+    const stateCandidates = districtsByState.get(nState) || [];
+    const fuzzyPool = stateCandidates.length ? stateCandidates : districts;
+
+    let best: DistrictLiveRecord | undefined;
+    let bestScore = 0;
+    for (const c of fuzzyPool) {
+      const cName = normalizeName(c.district);
+      if (!cName) continue;
+
+      let score = 0;
+      if (cName === nDistrict) score = 1;
+      else if (cName.includes(nDistrict) || nDistrict.includes(cName)) score = 0.95;
+      else score = tokenOverlapScore(cName, nDistrict);
+
+      if (score > bestScore) {
+        bestScore = score;
+        best = c;
+      }
+    }
+
+    if (bestScore >= 0.5 && best) {
+      return { record: best, provenance: "fuzzy" };
+    }
+
+    return { provenance: "state-estimated" };
+  };
+
   const filteredDistricts = useMemo(() => {
     return districts.filter((d) => {
       if (stateFilter && d.state !== stateFilter) return false;
@@ -226,6 +305,11 @@ export default function IndiaRealisticMapClient({ selectedRegionId, onSelectRegi
     if (!showChoropleth) count += 1;
     return count;
   }, [search, showChoropleth, showHeatmap, sortDir, sortKey, stateFilter]);
+
+  const choroplethLayerKey = useMemo(
+    () => `choropleth-${districts.length}-${lastUpdated}`,
+    [districts.length, lastUpdated]
+  );
 
   const changeSort = (nextKey: SortKey) => {
     if (sortKey === nextKey) {
@@ -432,16 +516,17 @@ export default function IndiaRealisticMapClient({ selectedRegionId, onSelectRegi
         {/* District boundary polygons for choropleth */}
         {showChoropleth && polygons && (
           <GeoJSON
+            key={choroplethLayerKey}
             data={polygons as unknown as GeoJSON.GeoJsonObject}
             style={(feature: any) => {
               const props = feature?.properties || {};
               const stateName = String(props.shapeName_1 || props.ADM1_EN || props.state || "");
               const districtName = String(props.shapeName || props.shapeName_2 || props.ADM2_EN || props.district || "");
 
-              const keyed = districtByName.get(`${normalizeName(stateName)}|${normalizeName(districtName)}`)
-                || districtByName.get(normalizeName(districtName));
+              const match = resolveDistrictRecord(stateName, districtName);
+              const keyed = match.record;
 
-              const intensity = keyed?.gridIntensityGCO2 ?? 550;
+              const intensity = keyed?.gridIntensityGCO2 ?? stateAverageIntensity.get(normalizeName(stateName)) ?? 550;
               return {
                 color: "#334155",
                 weight: 0.45,
@@ -453,12 +538,20 @@ export default function IndiaRealisticMapClient({ selectedRegionId, onSelectRegi
               const props = feature?.properties || {};
               const stateName = String(props.shapeName_1 || props.ADM1_EN || props.state || "");
               const districtName = String(props.shapeName || props.shapeName_2 || props.ADM2_EN || props.district || "");
-              const keyed = districtByName.get(`${normalizeName(stateName)}|${normalizeName(districtName)}`)
-                || districtByName.get(normalizeName(districtName));
+              const match = resolveDistrictRecord(stateName, districtName);
+              const keyed = match.record;
+              const stateAvg = stateAverageIntensity.get(normalizeName(stateName));
+
+              const badge =
+                match.provenance === "exact"
+                  ? '<span style="display:inline-block;padding:1px 6px;border-radius:999px;background:#dcfce7;color:#166534;font-weight:600;font-size:10px;">exact match</span>'
+                  : match.provenance === "fuzzy"
+                    ? '<span style="display:inline-block;padding:1px 6px;border-radius:999px;background:#fef3c7;color:#92400e;font-weight:600;font-size:10px;">fuzzy match</span>'
+                    : '<span style="display:inline-block;padding:1px 6px;border-radius:999px;background:#e2e8f0;color:#334155;font-weight:600;font-size:10px;">state-estimated</span>';
 
               const info = keyed
-                ? `${districtName}, ${stateName}<br/>${keyed.gridIntensityGCO2} gCO2/kWh · ${keyed.level} · ${keyed.source}`
-                : `${districtName}, ${stateName}<br/>No live join`;
+                ? `${districtName}, ${stateName}<br/>${keyed.gridIntensityGCO2} gCO2/kWh · ${keyed.level} · ${keyed.source}<br/>${badge}`
+                : `${districtName}, ${stateName}<br/>${stateAvg ?? 550} gCO2/kWh · estimated state baseline<br/>${badge}`;
 
               layer.bindTooltip(info, { sticky: true });
             }}

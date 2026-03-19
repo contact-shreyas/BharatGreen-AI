@@ -26,9 +26,18 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# ── IDE / OS ──────────────────────────────────────────────────────────────────
+# ── IDE / OS / Large Files ────────────────────────────────────────────────────
 .vscode/
 .idea/
+*.swp
+*.swo
 .DS_Store
 Thumbs.db
 desktop.ini
+*.log
+*.sqlite3
+*.db
+.coverage
+htmlcov/
+.pytest_cache/
+.mypy_cache/
