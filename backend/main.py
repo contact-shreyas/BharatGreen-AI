@@ -60,8 +60,11 @@ app = FastAPI(
 )
 
 # ── CORS ─────────────────────────────────────────────────────────────────────
-_cors_origins_raw = os.getenv("CORS_ORIGINS", "http://localhost:3000")
-_cors_origins = [o.strip() for o in _cors_origins_raw.split(",")]
+_cors_origins_raw = os.getenv("CORS_ORIGINS", "*")
+_cors_origins = (
+    ["*"] if _cors_origins_raw.strip() == "*"
+    else [o.strip() for o in _cors_origins_raw.split(",")]
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -89,3 +92,14 @@ async def root() -> dict:
         "docs": "/docs",
         "version": "1.0.0",
     }
+
+
+# ── Local dev entry-point ─────────────────────────────────────────────────────
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=int(os.environ.get("PORT", 8000)),
+        reload=True,
+    )

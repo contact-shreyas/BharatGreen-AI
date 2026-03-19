@@ -71,7 +71,7 @@ function getOfflineReply(userMsg: string, input: WorkloadInput, result: Calculat
 }
 
 async function callNemotronChat(message: string, context: string): Promise<string | null> {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
   try {
     const res = await fetch(`${apiUrl}/chat`, {
       method: "POST",

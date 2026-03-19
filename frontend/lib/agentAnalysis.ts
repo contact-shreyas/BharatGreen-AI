@@ -131,7 +131,7 @@ export async function fetchNemotronAnalysis(
   input: WorkloadInput,
   result: CalculationResult
 ): Promise<string> {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
 
   try {
     const res = await fetch(`${apiUrl}/workloads/analyze`, {
