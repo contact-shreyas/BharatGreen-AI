@@ -25,6 +25,15 @@ export interface RegionData {
   rating: Rating;
   level: CarbonLevel;
   isIndian?: boolean;
+  lat: number;                 // latitude for map marker
+  lng: number;                 // longitude for map marker
+}
+
+export interface LiveGridData {
+  regionId: string;
+  gridIntensityGCO2: number;   // live value (fluctuates)
+  trend: "up" | "down" | "flat";
+  lastUpdated: number;         // epoch ms
 }
 
 export interface WorkloadInput {

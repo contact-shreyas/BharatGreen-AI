@@ -28,6 +28,7 @@ export const REGIONS: RegionData[] = [
     provider: "GCP", country: "India",
     gridIntensityGCO2: 600, wueLitersPerKWh: 1.5, pue: 1.40,
     rating: "Best", level: "medium", isIndian: true,
+    lat: 13.0827, lng: 80.2707,
   },
   {
     id: "gcp-asia-south1",
@@ -36,6 +37,7 @@ export const REGIONS: RegionData[] = [
     provider: "GCP", country: "India",
     gridIntensityGCO2: 650, wueLitersPerKWh: 1.4, pue: 1.40,
     rating: "Best", level: "medium", isIndian: true,
+    lat: 12.9716, lng: 77.5946,
   },
   {
     id: "azure-south-india",
@@ -44,6 +46,7 @@ export const REGIONS: RegionData[] = [
     provider: "Azure", country: "India",
     gridIntensityGCO2: 700, wueLitersPerKWh: 1.5, pue: 1.45,
     rating: "Med", level: "medium", isIndian: true,
+    lat: 17.3850, lng: 78.4867,
   },
   {
     id: "aws-ap-south-1",
@@ -52,6 +55,7 @@ export const REGIONS: RegionData[] = [
     provider: "AWS", country: "India",
     gridIntensityGCO2: 750, wueLitersPerKWh: 1.8, pue: 1.50,
     rating: "Med", level: "medium", isIndian: true,
+    lat: 19.0760, lng: 72.8777,
   },
   {
     id: "azure-central-india",
@@ -60,6 +64,7 @@ export const REGIONS: RegionData[] = [
     provider: "Azure", country: "India",
     gridIntensityGCO2: 780, wueLitersPerKWh: 1.6, pue: 1.45,
     rating: "Med", level: "medium", isIndian: true,
+    lat: 18.5204, lng: 73.8567,
   },
   {
     id: "delhi-ncr",
@@ -68,6 +73,7 @@ export const REGIONS: RegionData[] = [
     provider: "Various", country: "India",
     gridIntensityGCO2: 850, wueLitersPerKWh: 2.0, pue: 1.60,
     rating: "Low", level: "high", isIndian: true,
+    lat: 28.6139, lng: 77.2090,
   },
   // ── Global Comparison ───────────────────────────────────────────────────
   {
@@ -77,6 +83,7 @@ export const REGIONS: RegionData[] = [
     provider: "GCP", country: "Finland",
     gridIntensityGCO2: 26, wueLitersPerKWh: 0.2, pue: 1.10,
     rating: "Best", level: "low",
+    lat: 64.9631, lng: 26.0665,
   },
   {
     id: "aws-eu-north-1",
@@ -85,6 +92,7 @@ export const REGIONS: RegionData[] = [
     provider: "AWS", country: "Sweden",
     gridIntensityGCO2: 45, wueLitersPerKWh: 0.3, pue: 1.15,
     rating: "Best", level: "low",
+    lat: 59.3293, lng: 18.0686,
   },
   {
     id: "aws-eu-west-3",
@@ -93,6 +101,7 @@ export const REGIONS: RegionData[] = [
     provider: "AWS", country: "France",
     gridIntensityGCO2: 85, wueLitersPerKWh: 0.4, pue: 1.20,
     rating: "Best", level: "low",
+    lat: 48.8566, lng: 2.3522,
   },
   {
     id: "aws-us-west-2",
@@ -101,6 +110,7 @@ export const REGIONS: RegionData[] = [
     provider: "AWS", country: "USA",
     gridIntensityGCO2: 118, wueLitersPerKWh: 0.5, pue: 1.15,
     rating: "Best", level: "low",
+    lat: 45.5231, lng: -122.6765,
   },
   {
     id: "aws-us-east-1",
@@ -109,6 +119,7 @@ export const REGIONS: RegionData[] = [
     provider: "AWS", country: "USA",
     gridIntensityGCO2: 320, wueLitersPerKWh: 1.8, pue: 1.20,
     rating: "Med", level: "medium",
+    lat: 38.9072, lng: -77.0369,
   },
   {
     id: "gcp-us-central1",
@@ -117,6 +128,7 @@ export const REGIONS: RegionData[] = [
     provider: "GCP", country: "USA",
     gridIntensityGCO2: 380, wueLitersPerKWh: 1.1, pue: 1.11,
     rating: "Med", level: "medium",
+    lat: 41.8780, lng: -93.0977,
   },
 ];
 

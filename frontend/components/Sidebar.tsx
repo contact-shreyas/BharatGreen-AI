@@ -13,6 +13,12 @@ import {
   FileText,
   ClipboardCheck,
   Leaf,
+  CalendarClock,
+  GitCompare,
+  Award,
+  Scale,
+  Trophy,
+  GitBranch,
 } from "lucide-react";
 import clsx from "clsx";
 
@@ -57,10 +63,21 @@ const NAV: NavSection[] = [
     ],
   },
   {
+    title: "ANALYTICS",
+    items: [
+      { label: "Green Scheduler",    icon: <CalendarClock size={15} /> },
+      { label: "Workload Compare",   icon: <GitCompare size={15} /> },
+      { label: "Carbon Passport",    icon: <Award size={15} /> },
+      { label: "CI/CD Carbon Gate",  icon: <GitBranch size={15} /> },
+    ],
+  },
+  {
     title: "COMPLIANCE",
     items: [
-      { label: "ESG Reports",  icon: <FileText size={15} /> },
-      { label: "Audit Trail",  icon: <ClipboardCheck size={15} /> },
+      { label: "BRSR Compliance",  icon: <Scale size={15} /> },
+      { label: "Team Leaderboard", icon: <Trophy size={15} /> },
+      { label: "ESG Reports",      icon: <FileText size={15} /> },
+      { label: "Audit Trail",      icon: <ClipboardCheck size={15} /> },
     ],
   },
 ];

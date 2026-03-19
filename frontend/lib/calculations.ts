@@ -24,16 +24,17 @@ const TREE_ABSORPTION_KG = 21.77;
  * Water    = Energy × WUE                                       (litres)
  * Trees    = Total_Carbon / 21.77
  */
-export function calculateFootprint(input: WorkloadInput): CalculationResult {
+export function calculateFootprint(input: WorkloadInput, liveGridIntensityGCO2?: number): CalculationResult {
   const gpu = getGPU(input.gpuType);
   const region = getRegion(input.region);
   const util = input.utilizationPct / 100;
+  const gridIntensity = liveGridIntensityGCO2 ?? region.gridIntensityGCO2;
 
   // Energy (kWh) — raw GPU cluster energy
   const energyKWh = (input.numGPUs * gpu.powerW * util * input.durationHours) / 1000;
 
   // Operational carbon (kg CO₂e)
-  const carbonKgCO2e = (energyKWh * region.gridIntensityGCO2) / 1000;
+  const carbonKgCO2e = (energyKWh * gridIntensity) / 1000;
 
   // Embodied carbon amortised over GPU lifetime (kg CO₂e)
   const embodiedCarbonKg =
@@ -91,6 +92,11 @@ export function getTopAlternatives(
     })
     .sort((a, b) => b.carbonSavings - a.carbonSavings)
     .slice(0, topN);
+}
+
+// ─── Carbon cost in INR (India shadow carbon price ₹750/tonne CO₂e) ──────────
+export function carbonCostINR(carbonKgCO2e: number): number {
+  return Math.round((carbonKgCO2e / 1000) * 750 * 100) / 100; // in ₹
 }
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
