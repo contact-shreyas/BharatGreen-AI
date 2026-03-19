@@ -1,5 +1,5 @@
 """
-CarbonSense AI — Regional Infrastructure Data
+BharatGreen AI — Regional Infrastructure Data
 ==============================================
 Mock-but-realistic data sourced from IEA, CEEW (India), and hyperscaler
 sustainability reports. Covers Indian data centers (primary focus) and

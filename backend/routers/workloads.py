@@ -1,5 +1,5 @@
 """
-CarbonSense AI — /workloads Router
+BharatGreen AI — /workloads Router
 =====================================
 POST /workloads/analyze   → Full carbon + water + Nemotron analysis
 POST /workloads/optimize  → What-If comparison across greener regions

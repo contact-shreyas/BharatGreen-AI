@@ -1,8 +1,8 @@
 """
-CarbonSense AI — NVIDIA Nemotron Agent
+BharatGreen AI — NVIDIA Nemotron Agent
 ========================================
 Wraps the NVIDIA NIM API (OpenAI-compatible) to power the agentic
-"CarbonSense" analysis.  The agent uses a structured ReAct-style
+"BharatGreen" analysis.  The agent uses a structured ReAct-style
 prompt that mirrors the reasoning chain shown in the UI.
 
 Fallback: if the API key is missing or the call fails, a rich
@@ -28,7 +28,7 @@ _NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY", "")
 
 def _build_system_prompt() -> str:
     return textwrap.dedent("""\
-        You are CarbonSense AI, an expert sustainability architect specialising in the
+        You are BharatGreen AI, an expert sustainability architect specialising in the
         environmental impact of AI/ML workloads on cloud infrastructure.
 
         When given workload parameters and calculated metrics, you:
@@ -84,7 +84,7 @@ def _build_user_prompt(
         Optimisation Analysis:
         {scenario_text}
 
-        Please provide a full CarbonSense analysis with the migration snippet for
+        Please provide a full BharatGreen analysis with the migration snippet for
         the top recommended region.
     """)
 

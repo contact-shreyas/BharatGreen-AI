@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// CarbonSense AI — Nemotron Agent Analysis Generator
+// BharatGreen AI — Nemotron Agent Analysis Generator
 //
 // Produces a realistic ReAct-style analysis trace.
 // When the backend is available it proxies through to Nemotron;
@@ -32,8 +32,8 @@ kind: Job
 metadata:
   name: ai-training-carbon-optimized
   annotations:
-    carbonsense.io/preferred-region: "${best?.region.name ?? region.name}"
-    carbonsense.io/max-grid-intensity: "${altIntensity + 50}"
+    bharatgreen.io/preferred-region: "${best?.region.name ?? region.name}"
+    bharatgreen.io/max-grid-intensity: "${altIntensity + 50}"
 spec:
   template:
     spec:
@@ -51,15 +51,15 @@ spec:
   region = "${best?.region.name ?? region.name}"
 }
 
-resource "compute_instance" "carbonsense_training" {
-  name         = "carbonsense-ai-training"
+resource "compute_instance" "bharatgreen_training" {
+  name         = "bharatgreen-ai-training"
   region       = "${best?.region.name ?? region.name}"
   gpu_count    = ${input.numGPUs}
   gpu_type     = "${gpu.id}"
 
   labels = {
     carbon_optimized   = "true"
-    managed_by         = "carbonsense-ai"
+    managed_by         = "bharatgreen-ai"
   }
 }`;
 

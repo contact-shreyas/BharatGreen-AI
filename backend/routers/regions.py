@@ -1,5 +1,5 @@
 """
-CarbonSense AI — /regions Router
+BharatGreen AI — /regions Router
 ===================================
 GET /regions          → List all available regions
 GET /regions/indian   → List Indian data-center regions only

@@ -1,5 +1,5 @@
 """
-CarbonSense AI — Pydantic Schemas
+BharatGreen AI — Pydantic Schemas
 ==================================
 All request / response models used by FastAPI endpoints.
 Validated at the API boundary; internal logic uses domain dataclasses.

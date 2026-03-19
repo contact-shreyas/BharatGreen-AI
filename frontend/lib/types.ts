@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// CarbonSense AI — Shared TypeScript Types
+// BharatGreen AI — Shared TypeScript Types
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface GPUSpec {

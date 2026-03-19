@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// CarbonSense AI — Client-Side Calculation Engine
+// BharatGreen AI — Client-Side Calculation Engine
 //
 // Mirrors the backend Python logic exactly so the UI can update instantly
 // without a network round-trip. Backend is called only for Nemotron analysis.

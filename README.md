@@ -1,4 +1,4 @@
-# CarbonSense AI 🌿
+# BharatGreen AI 🌿
 
 > Intelligent agent for tracking and reducing the carbon & water footprint of AI workloads across multi-cloud environments — powered by **NVIDIA Nemotron**.
 
@@ -9,7 +9,7 @@
 ## Architecture
 
 ```
-carbonsense-ai/
+bharatgreen-ai/
 ├── backend/            ← Python FastAPI calculation engine + Nemotron agent
 │   ├── main.py         ← FastAPI app entry point
 │   ├── data/

@@ -74,7 +74,7 @@ export default function Sidebar({ activeView, onNavigate }: SidebarProps) {
           <Leaf size={16} className="text-white" />
         </div>
         <div>
-          <p className="text-sm font-semibold text-white leading-tight">CarbonSense AI</p>
+          <p className="text-sm font-semibold text-white leading-tight">BharatGreen AI</p>
           <p className="text-[10px] text-gray-500 leading-tight">Enterprise Platform</p>
         </div>
       </div>

@@ -78,7 +78,7 @@ export default function ContentView({ view }: Props) {
       <header className="flex items-center justify-between px-7 py-4 bg-white border-b border-gray-200 sticky top-0 z-10">
         <div>
           <h1 className="text-base font-semibold text-gray-900">{titles[view] ?? view}</h1>
-          <p className="text-xs text-gray-400 mt-0.5">CarbonSense AI · India Enterprise Platform</p>
+          <p className="text-xs text-gray-400 mt-0.5">BharatGreen AI · India Enterprise Platform</p>
         </div>
       </header>
       <main className="flex-1 px-7 py-6">

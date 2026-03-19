@@ -1,5 +1,5 @@
 """
-CarbonSense AI — Core Calculation Engine
+BharatGreen AI — Core Calculation Engine
 =========================================
 Implements the two-part environmental footprint formula:
 
@@ -107,14 +107,14 @@ def calculate_footprint(req: WorkloadRequest) -> Tuple[FootprintMetrics, RegionD
 def _build_k8s_snippet(num_gpus: int, gpu_id: str, region_name: str, max_intensity: int) -> str:
     """Generate a Kubernetes Job manifest for carbon-optimised deployment."""
     return f"""\
-# kubernetes/carbonsense-job.yaml
+# kubernetes/bharatgreen-job.yaml
 apiVersion: batch/v1
 kind: Job
 metadata:
   name: ai-training-carbon-optimized
   annotations:
-    carbonsense.io/preferred-region: "{region_name}"
-    carbonsense.io/max-grid-intensity: "{max_intensity}"
+    bharatgreen.io/preferred-region: "{region_name}"
+    bharatgreen.io/max-grid-intensity: "{max_intensity}"
 spec:
   template:
     spec:
@@ -144,8 +144,8 @@ provider "{tf_provider}" {{
   region = "{region_name}"
 }}
 
-resource "compute_instance" "carbonsense_training" {{
-  name         = "carbonsense-ai-training"
+resource "compute_instance" "bharatgreen_training" {{
+  name         = "bharatgreen-ai-training"
   machine_type = "gpu-optimized-{num_gpus}x"
   region       = "{region_name}"
 
@@ -157,7 +157,7 @@ resource "compute_instance" "carbonsense_training" {{
   labels = {{
     carbon_optimized     = "true"
     est_carbon_kg_co2e  = "{est_carbon}"
-    managed_by          = "carbonsense-ai"
+    managed_by          = "bharatgreen-ai"
   }}
 }}"""
 

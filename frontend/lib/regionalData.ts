@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// CarbonSense AI — Static Regional & GPU Data (Frontend Mirror)
+// BharatGreen AI — Static Regional & GPU Data (Frontend Mirror)
 // Matches the backend catalogue; used for instant client-side calculations.
 // ─────────────────────────────────────────────────────────────────────────────
 

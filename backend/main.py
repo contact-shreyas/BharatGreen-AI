@@ -1,5 +1,5 @@
 """
-CarbonSense AI — FastAPI Application Entry Point
+BharatGreen AI — FastAPI Application Entry Point
 =================================================
 Run in development:
     uvicorn main:app --reload --port 8000
@@ -29,22 +29,22 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s — %(message)s",
 )
-logger = logging.getLogger("carbonsense")
+logger = logging.getLogger("bharatgreen")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    logger.info("CarbonSense AI backend starting up…")
+    logger.info("BharatGreen AI backend starting up…")
     logger.info(
         "NVIDIA Nemotron model: %s",
         os.getenv("NVIDIA_MODEL", "nvidia/llama-3.1-nemotron-70b-instruct"),
     )
     yield
-    logger.info("CarbonSense AI backend shutting down.")
+    logger.info("BharatGreen AI backend shutting down.")
 
 
 app = FastAPI(
-    title="CarbonSense AI",
+    title="BharatGreen AI",
     description=(
         "Intelligent agent for tracking and reducing carbon & water footprints "
         "of AI workloads across multi-cloud environments.\n\n"
@@ -52,8 +52,8 @@ app = FastAPI(
     ),
     version="1.0.0",
     contact={
-        "name": "CarbonSense AI Team",
-        "url": "https://github.com/your-org/carbonsense-ai",
+        "name": "BharatGreen AI Team",
+        "url": "https://github.com/your-org/bharatgreen-ai",
     },
     license_info={"name": "MIT"},
     lifespan=lifespan,
@@ -79,13 +79,13 @@ app.include_router(regions_router, prefix="/api/v1")
 # ── Health check ──────────────────────────────────────────────────────────────
 @app.get("/health", tags=["Health"], summary="Health check")
 async def health() -> dict:
-    return {"status": "ok", "service": "CarbonSense AI"}
+    return {"status": "ok", "service": "BharatGreen AI"}
 
 
 @app.get("/", tags=["Root"], include_in_schema=False)
 async def root() -> dict:
     return {
-        "message": "CarbonSense AI API",
+        "message": "BharatGreen AI API",
         "docs": "/docs",
         "version": "1.0.0",
     }

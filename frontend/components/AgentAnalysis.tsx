@@ -34,7 +34,7 @@ export default function AgentAnalysis({ displayedText, fullText, status, timesta
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
         <div className="flex items-center gap-2">
           <Bot size={15} className="text-green-500" />
-          <p className="text-xs font-semibold text-gray-800">CarbonSense agent analysis</p>
+          <p className="text-xs font-semibold text-gray-800">BharatGreen agent analysis</p>
         </div>
         <div className="flex items-center gap-2">
           {status === "analyzing" && (
