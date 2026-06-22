@@ -24,6 +24,7 @@ load_dotenv()
 
 from routers.workloads import router as workloads_router
 from routers.regions import router as regions_router
+from routers.prompt import router as prompt_router
 
 logging.basicConfig(
     level=logging.INFO,
@@ -38,6 +39,21 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     logger.info(
         "NVIDIA Nemotron model: %s",
         os.getenv("NVIDIA_MODEL", "nvidia/llama-3.1-nemotron-70b-instruct"),
+    )
+    _provider = os.getenv("LLM_PROVIDER", "gemini").strip().lower()
+    _answer_key = (
+        os.getenv("ANTHROPIC_API_KEY") if _provider == "anthropic" else os.getenv("GEMINI_API_KEY")
+    )
+    _answer_model = (
+        os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-6")
+        if _provider == "anthropic"
+        else os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+    )
+    logger.info(
+        "Answer provider: %s · model: %s (key %s)",
+        _provider,
+        _answer_model,
+        "configured" if _answer_key else "NOT set — answers will be mocked",
     )
     yield
     logger.info("BharatGreen AI backend shutting down.")
@@ -77,6 +93,7 @@ app.add_middleware(
 # ── Routers ───────────────────────────────────────────────────────────────────
 app.include_router(workloads_router, prefix="/api/v1")
 app.include_router(regions_router, prefix="/api/v1")
+app.include_router(prompt_router, prefix="/api/v1")
 
 
 # ── Health check ──────────────────────────────────────────────────────────────

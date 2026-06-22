@@ -5,6 +5,7 @@ import clsx from "clsx";
 import { REGIONS } from "@/lib/regionalData";
 import { Rating, RegionData } from "@/lib/types";
 import { Download } from "lucide-react";
+import PromptOptimizer from "./PromptOptimizer";
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
 function Card({ children, className }: { children: React.ReactNode; className?: string }) {
@@ -78,6 +79,7 @@ export default function ContentView({ view }: Props) {
     "BRSR Compliance":  "BRSR Compliance Module",
     "Team Leaderboard": "Team Carbon Leaderboard",
     "CI/CD Carbon Gate": "CI/CD Carbon Gate",
+    "Prompt Optimizer": "Green Prompt Optimizer",
   };
 
   return (
@@ -97,6 +99,7 @@ export default function ContentView({ view }: Props) {
 
 function viewFor(view: string) {
   switch (view) {
+    case "Prompt Optimizer": return <PromptOptimizer />;
     case "AI Workloads":     return <AIWorkloadsView />;
     case "Data Centers":     return <DataCentersView />;
     case "Carbon Report":    return <CarbonReportView />;

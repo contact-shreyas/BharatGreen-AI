@@ -148,6 +148,87 @@ class OptimizationResponse(BaseModel):
     summary: str = Field(description="Nemotron-generated migration plan summary.")
 
 
+class PromptOptimizeRequest(BaseModel):
+    """A natural-language prompt to be made more token-efficient."""
+    prompt: str = Field(
+        description="The user's original LLM prompt to optimise.",
+        min_length=1,
+        max_length=8000,
+    )
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "prompt": "Could you please kindly help me write a Python function "
+                          "that returns the average of a list of numbers? Thank you!"
+            }
+        }
+    }
+
+
+class PromptOptimizeResponse(BaseModel):
+    """The optimised prompt plus a list of human-readable edits."""
+    optimized_prompt: str = Field(description="Leaner, clearer rewrite of the prompt.")
+    notes: List[str] = Field(
+        default_factory=list,
+        description="Human-readable summary of what changed.",
+    )
+    source: str = Field(
+        default="mock",
+        description="'nemotron' if rewritten by the NVIDIA NIM API, else 'mock'.",
+    )
+
+
+class PromptAnswerRequest(BaseModel):
+    """An (optimized) prompt to be answered by Claude."""
+    prompt: str = Field(
+        description="The prompt Claude should answer (usually the optimized one).",
+        min_length=1,
+        max_length=8000,
+    )
+    api_key: Optional[str] = Field(
+        default=None,
+        description="Optional per-user API key (Gemini or Claude). Overrides the server key; never stored.",
+    )
+    model: Optional[str] = Field(
+        default=None,
+        description="Optional model override (e.g. 'gemini-2.0-flash' or 'claude-sonnet-4-6').",
+    )
+    provider: Optional[str] = Field(
+        default=None,
+        description="Optional provider override: 'gemini' (default) or 'anthropic'.",
+    )
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "prompt": "Write a Python function returning the average of a list of numbers."
+            }
+        }
+    }
+
+
+class PromptAnswerUsage(BaseModel):
+    """Real token usage reported by Claude for the answered prompt."""
+    input_tokens: int = Field(default=0, description="Prompt tokens Claude read.")
+    output_tokens: int = Field(default=0, description="Tokens Claude generated.")
+
+
+class PromptAnswerResponse(BaseModel):
+    """The model's answer to the prompt, plus the model and measured token usage."""
+    answer: str = Field(description="The model's answer to the prompt.")
+    model: str = Field(description="Model that produced the answer.")
+    provider: str = Field(
+        default="gemini",
+        description="Provider that answered: 'gemini' or 'anthropic'.",
+    )
+    source: str = Field(
+        default="mock",
+        description="'live' if a real model answered, else 'mock'.",
+    )
+    usage: PromptAnswerUsage = Field(default_factory=PromptAnswerUsage)
+
+
 class RegionListResponse(BaseModel):
     """All available regions with their carbon data."""
     regions: List[RegionSummary]

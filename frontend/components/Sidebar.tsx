@@ -19,6 +19,7 @@ import {
   Scale,
   Trophy,
   GitBranch,
+  Wand2,
 } from "lucide-react";
 import clsx from "clsx";
 
@@ -44,6 +45,12 @@ const NAV: NavSection[] = [
       { label: "Dashboard",     icon: <LayoutDashboard size={15} /> },
       { label: "AI Workloads",  icon: <Cpu size={15} /> },
       { label: "Data Centers",  icon: <Building2 size={15} /> },
+    ],
+  },
+  {
+    title: "GREEN AI",
+    items: [
+      { label: "Prompt Optimizer", icon: <Wand2 size={15} /> },
     ],
   },
   {
