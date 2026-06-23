@@ -36,6 +36,14 @@ class GPUSpec:
     power_w: float               # Thermal Design Power (watts)
     embodied_carbon_kg: float    # Cradle-to-gate CO₂e (kg)
     lifetime_hours: float = 87_600.0  # 10-year rated lifetime
+    # Relative training/inference throughput (A100 SXM4 = 1.0). A faster GPU
+    # finishes the same job in fewer wall-clock hours, so total energy can drop
+    # even when its TDP is higher — this is what lets the agent recommend
+    # "A100 → H100" as a *greener* choice.
+    perf_relative: float = 1.0
+    # Approximate on-demand cloud price, USD per GPU-hour. Used by the
+    # cost ↔ carbon trade-off engine.
+    price_usd_per_hour: float = 1.6
 
 
 @dataclass(frozen=True)
@@ -52,6 +60,10 @@ class RegionData:
     rating: Rating
     level: CarbonLevel
     is_indian: bool = False
+    # Relative compute price multiplier vs the global baseline (1.0). Indian
+    # regions are slightly cheaper; EU/Nordic a little pricier. Lets the
+    # trade-off engine weigh money against carbon.
+    price_multiplier: float = 1.0
 
 
 # ---------------------------------------------------------------------------
@@ -60,31 +72,38 @@ class RegionData:
 GPU_CATALOG: Dict[str, GPUSpec] = {
     "h100-sxm": GPUSpec(
         id="h100-sxm", name="H100 SXM5 — 700W",
-        power_w=700, embodied_carbon_kg=150
+        power_w=700, embodied_carbon_kg=150,
+        perf_relative=2.6, price_usd_per_hour=3.2,
     ),
     "h100-pcie": GPUSpec(
         id="h100-pcie", name="H100 PCIe — 350W",
-        power_w=350, embodied_carbon_kg=120
+        power_w=350, embodied_carbon_kg=120,
+        perf_relative=1.7, price_usd_per_hour=2.4,
     ),
     "a100-sxm": GPUSpec(
         id="a100-sxm", name="A100 SXM4 — 400W",
-        power_w=400, embodied_carbon_kg=100
+        power_w=400, embodied_carbon_kg=100,
+        perf_relative=1.0, price_usd_per_hour=1.6,
     ),
     "a100-pcie": GPUSpec(
         id="a100-pcie", name="A100 PCIe — 300W",
-        power_w=300, embodied_carbon_kg=80
+        power_w=300, embodied_carbon_kg=80,
+        perf_relative=0.85, price_usd_per_hour=1.2,
     ),
     "v100": GPUSpec(
         id="v100", name="V100 SXM2 — 300W",
-        power_w=300, embodied_carbon_kg=70
+        power_w=300, embodied_carbon_kg=70,
+        perf_relative=0.42, price_usd_per_hour=0.8,
     ),
     "a10g": GPUSpec(
         id="a10g", name="A10G — 150W",
-        power_w=150, embodied_carbon_kg=40
+        power_w=150, embodied_carbon_kg=40,
+        perf_relative=0.35, price_usd_per_hour=0.55,
     ),
     "t4": GPUSpec(
         id="t4", name="T4 — 70W",
-        power_w=70, embodied_carbon_kg=25
+        power_w=70, embodied_carbon_kg=25,
+        perf_relative=0.18, price_usd_per_hour=0.35,
     ),
 }
 

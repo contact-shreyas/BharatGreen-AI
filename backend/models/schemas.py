@@ -229,6 +229,129 @@ class PromptAnswerResponse(BaseModel):
     usage: PromptAnswerUsage = Field(default_factory=PromptAnswerUsage)
 
 
+# ---------------------------------------------------------------------------
+# Agentic Auto-Optimizer  (multi-step: region × GPU × schedule)
+# ---------------------------------------------------------------------------
+
+class AutoOptimizeRequest(BaseModel):
+    """Ask the agent to autonomously minimise a workload's footprint."""
+    workload: WorkloadRequest
+    objective: str = Field(
+        default="carbon",
+        description="Optimisation objective: 'carbon', 'cost', or 'balanced'.",
+    )
+    cost_weight: float = Field(
+        default=0.0, ge=0.0, le=1.0,
+        description="0 = minimise carbon only, 1 = minimise cost only. "
+                    "Used when objective is 'balanced'.",
+    )
+    allow_gpu_swap: bool = Field(default=True, description="Let the agent change GPU model.")
+    allow_region_shift: bool = Field(default=True, description="Let the agent change region.")
+    allow_time_shift: bool = Field(default=True, description="Let the agent time-shift the run.")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "workload": WorkloadRequest.model_config["json_schema_extra"]["example"],
+                "objective": "balanced",
+                "cost_weight": 0.4,
+            }
+        }
+    }
+
+
+class PlanMetrics(BaseModel):
+    """Footprint + cost for one workload configuration."""
+    gpu_type: str
+    gpu_name: str
+    region: str
+    region_name: str
+    num_gpus: int
+    duration_hours: float = Field(description="Effective wall-clock hours (scaled by GPU speed).")
+    best_hour_ist: int = Field(description="Lowest-carbon hour to launch (0–23, IST).")
+    energy_kwh: float
+    carbon_kg_co2e: float
+    water_liters: float
+    cost_usd: float
+
+
+class AutoOptimizePlan(BaseModel):
+    """A single concrete migration plan the agent evaluated."""
+    label: str = Field(description="Human-readable summary, e.g. 'Mumbai → Chennai, A100 → H100, run 03:00 IST'.")
+    metrics: PlanMetrics
+    carbon_savings_kg: float
+    carbon_savings_pct: float
+    water_savings_liters: float
+    cost_delta_usd: float = Field(description="Cost change vs baseline (negative = cheaper).")
+    actions: List[str] = Field(default_factory=list, description="Discrete migration steps.")
+    recommended: bool = False
+
+
+class AgentStep(BaseModel):
+    """One step of the agent's reasoning trace (ReAct-style)."""
+    thought: str
+    action: str
+    observation: str
+
+
+class AutoOptimizeResponse(BaseModel):
+    """The agent's autonomous optimisation result."""
+    baseline: PlanMetrics
+    recommended: AutoOptimizePlan
+    carbon_optimal: AutoOptimizePlan
+    cost_optimal: AutoOptimizePlan
+    candidates: List[AutoOptimizePlan]
+    steps: List[AgentStep] = Field(description="Multi-step reasoning trace.")
+    summary: str = Field(description="Nemotron (or fallback) natural-language migration plan.")
+    combos_evaluated: int
+    source: str = Field(default="mock", description="'nemotron' if narrated by NVIDIA NIM, else 'mock'.")
+
+
+# ---------------------------------------------------------------------------
+# Workload-to-spec natural-language parser
+# ---------------------------------------------------------------------------
+
+class ParseWorkloadRequest(BaseModel):
+    """A free-text workload description to convert into structured params."""
+    text: str = Field(min_length=1, max_length=2000)
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {"text": "training Llama-70B for 3 days on 64 H100 GPUs in Mumbai"}
+        }
+    }
+
+
+class ParseWorkloadResponse(BaseModel):
+    """Structured workload parameters extracted from natural language."""
+    workload: WorkloadRequest
+    fields_found: List[str] = Field(
+        default_factory=list,
+        description="Which fields the parser confidently extracted.",
+    )
+    source: str = Field(default="mock", description="'nemotron' or 'mock' (regex fallback).")
+
+
+# ---------------------------------------------------------------------------
+# 24-hour grid carbon forecast (time-shift scheduler)
+# ---------------------------------------------------------------------------
+
+class ForecastPoint(BaseModel):
+    hour_ist: int
+    intensity_g_co2: float
+
+
+class GridForecastResponse(BaseModel):
+    region: str
+    region_name: str
+    points: List[ForecastPoint]
+    best_hour_ist: int
+    worst_hour_ist: int
+    best_intensity_g_co2: float
+    worst_intensity_g_co2: float
+    source: str = Field(default="simulated")
+
+
 class RegionListResponse(BaseModel):
     """All available regions with their carbon data."""
     regions: List[RegionSummary]
