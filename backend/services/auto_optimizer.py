@@ -37,7 +37,7 @@ from services.calculator import calculate_footprint, _region_to_summary  # noqa:
 
 logger = logging.getLogger(__name__)
 
-_NVIDIA_MODEL = os.getenv("NVIDIA_MODEL", "nvidia/llama-3.1-nemotron-70b-instruct")
+_NVIDIA_MODEL = os.getenv("NVIDIA_MODEL", "nvidia/nemotron-mini-4b-instruct")
 _NVIDIA_BASE_URL = os.getenv("NVIDIA_API_BASE_URL", "https://integrate.api.nvidia.com/v1")
 _NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY", "")
 
@@ -312,6 +312,7 @@ async def auto_optimize(req: AutoOptimizeRequest) -> AutoOptimizeResponse:
                 ],
                 temperature=0.3,
                 max_tokens=400,
+                timeout=18,
             )
             text = (completion.choices[0].message.content or "").strip()
             if text:

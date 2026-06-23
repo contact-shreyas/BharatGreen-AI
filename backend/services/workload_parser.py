@@ -23,7 +23,7 @@ from models.schemas import WorkloadRequest, ParseWorkloadResponse
 
 logger = logging.getLogger(__name__)
 
-_NVIDIA_MODEL = os.getenv("NVIDIA_MODEL", "nvidia/llama-3.1-nemotron-70b-instruct")
+_NVIDIA_MODEL = os.getenv("NVIDIA_MODEL", "nvidia/nemotron-mini-4b-instruct")
 _NVIDIA_BASE_URL = os.getenv("NVIDIA_API_BASE_URL", "https://integrate.api.nvidia.com/v1")
 _NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY", "")
 
@@ -157,6 +157,7 @@ async def parse_workload(text: str) -> ParseWorkloadResponse:
                 ],
                 temperature=0.0,
                 max_tokens=300,
+                timeout=15,
             )
             raw = (completion.choices[0].message.content or "").strip()
             raw = re.sub(r"^```(?:json)?|```$", "", raw, flags=re.MULTILINE).strip()
