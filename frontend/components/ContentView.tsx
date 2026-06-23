@@ -4,8 +4,67 @@ import React from "react";
 import clsx from "clsx";
 import { REGIONS } from "@/lib/regionalData";
 import { Rating, RegionData } from "@/lib/types";
-import { Download } from "lucide-react";
+import { Download, Wifi, RefreshCw, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import PromptOptimizer from "./PromptOptimizer";
+import AutoOptimizer from "./AutoOptimizer";
+import { useLive } from "@/lib/LiveContext";
+
+// ── Live helpers ───────────────────────────────────────────────────────────────
+/** Multiply a static "current-period" number by the live grid factor. */
+function useLiveScale() {
+  const { liveFactor } = useLive();
+  return (n: number, decimals = 0) => {
+    const v = n * liveFactor;
+    const p = Math.pow(10, decimals);
+    return Math.round(v * p) / p;
+  };
+}
+
+/** Header pill — shows whether the page is on the real API or simulated, + age. */
+function LivePill() {
+  const { source, secondsAgo, fleetIntensity, refresh } = useLive();
+  const isLiveApi = source === "live";
+  return (
+    <div className="flex items-center gap-2">
+      <div className={clsx(
+        "flex items-center gap-1.5 px-3 py-1.5 border rounded-md",
+        isLiveApi ? "bg-green-50 border-green-200" : "bg-amber-50 border-amber-200"
+      )}>
+        <Wifi size={11} className={isLiveApi ? "text-green-600" : "text-amber-500"} />
+        <span className={clsx("text-xs font-semibold", isLiveApi ? "text-green-700" : "text-amber-600")}>
+          {isLiveApi ? "LIVE API" : "LIVE"}
+        </span>
+        <span className={clsx("text-xs tabular-nums", isLiveApi ? "text-green-600" : "text-amber-600")}>
+          {Math.round(fleetIntensity)} gCO₂/kWh
+        </span>
+        <span className={clsx("text-xs", isLiveApi ? "text-green-500" : "text-amber-500")}>
+          · {secondsAgo < 5 ? "just now" : `${secondsAgo}s ago`}
+        </span>
+        <button onClick={refresh} title="Refresh live grid data"
+          className={clsx("ml-0.5 transition-colors", isLiveApi ? "text-green-500 hover:text-green-700" : "text-amber-400 hover:text-amber-600")}>
+          <RefreshCw size={10} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** Small inline "live" tag for KPIs/cards whose number tracks the live grid. */
+function LiveTag({ className }: { className?: string }) {
+  return (
+    <span className={clsx("inline-flex items-center gap-1 text-[9px] font-bold text-emerald-600 uppercase tracking-wide", className)}>
+      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse inline-block" /> live
+    </span>
+  );
+}
+
+/** Live trend arrow vs baseline (liveFactor >/=/< 1). */
+function LiveTrend() {
+  const { liveFactor } = useLive();
+  if (liveFactor > 1.02) return <TrendingUp size={11} className="text-red-500" />;
+  if (liveFactor < 0.98) return <TrendingDown size={11} className="text-emerald-500" />;
+  return <Minus size={11} className="text-gray-400" />;
+}
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
 function Card({ children, className }: { children: React.ReactNode; className?: string }) {
@@ -34,16 +93,20 @@ function Badge({ color, children }: { color: BadgeColor; children: React.ReactNo
 }
 
 function KPIStat({
-  label, value, sub, note,
+  label, value, sub, note, live,
 }: {
-  label: string; value: string; sub?: string; note?: string;
+  label: string; value: string; sub?: string; note?: string; live?: boolean;
 }) {
   return (
     <Card>
-      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-2">{label}</p>
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">{label}</p>
+        {live && <LiveTag />}
+      </div>
       <div className="flex items-baseline gap-1.5">
         <span className="text-2xl font-bold text-gray-900 tabular-nums leading-none">{value}</span>
         {sub && <span className="text-[11px] text-gray-400">{sub}</span>}
+        {live && <span className="ml-auto"><LiveTrend /></span>}
       </div>
       {note && <p className="text-[10.5px] mt-1.5 text-gray-400">{note}</p>}
     </Card>
@@ -80,6 +143,7 @@ export default function ContentView({ view }: Props) {
     "Team Leaderboard": "Team Carbon Leaderboard",
     "CI/CD Carbon Gate": "CI/CD Carbon Gate",
     "Prompt Optimizer": "Green Prompt Optimizer",
+    "Auto-Optimizer":   "Agentic Auto-Optimizer",
   };
 
   return (
@@ -89,6 +153,7 @@ export default function ContentView({ view }: Props) {
           <h1 className="text-base font-semibold text-gray-900">{titles[view] ?? view}</h1>
           <p className="text-xs text-gray-400 mt-0.5">BharatGreen AI · India Enterprise Platform</p>
         </div>
+        <LivePill />
       </header>
       <main className="flex-1 px-7 py-6">
         {viewFor(view)}
@@ -100,6 +165,7 @@ export default function ContentView({ view }: Props) {
 function viewFor(view: string) {
   switch (view) {
     case "Prompt Optimizer": return <PromptOptimizer />;
+    case "Auto-Optimizer":   return <AutoOptimizer />;
     case "AI Workloads":     return <AIWorkloadsView />;
     case "Data Centers":     return <DataCentersView />;
     case "Carbon Report":    return <CarbonReportView />;
@@ -138,13 +204,22 @@ const WORKLOADS: {
 
 function AIWorkloadsView() {
   const statusColor: Record<JobStatus, BadgeColor> = { Running: "green", Queued: "amber", Complete: "gray" };
+  const scale = useLiveScale();
   const TH = ["Workload", "GPU", "Count", "Region", "Duration", "Carbon (kg CO₂e)", "Status"];
+  const liveMonthly = scale(20934);
+  // Live carbon for a workload row — only "Running" jobs track the live grid.
+  const liveCarbon = (w: typeof WORKLOADS[number]) => {
+    const n = Number(w.carbon.replace(/,/g, ""));
+    return w.status === "Running"
+      ? scale(n, n < 100 ? 1 : 0).toLocaleString()
+      : w.carbon;
+  };
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KPIStat label="Active Jobs"      value="3"      sub="jobs"      note="↑ 2 since yesterday" />
         <KPIStat label="GPUs in Use"      value="88"     sub="GPUs"      />
-        <KPIStat label="Monthly Carbon"   value="20,934" sub="kg CO₂e"   note="↑ 12% vs Feb" />
+        <KPIStat label="Live Carbon Rate" value={liveMonthly.toLocaleString()} sub="kg CO₂e" note="month-to-date · tracks live grid" live />
         <KPIStat label="Avg Utilization"  value="84"     sub="%"         note="↓ 3% vs last week" />
       </div>
       <Card>
@@ -166,7 +241,10 @@ function AIWorkloadsView() {
                   <td className="px-3 py-2.5 text-[12px] tabular-nums text-gray-700">{w.count}</td>
                   <td className="px-3 py-2.5 text-[11.5px] text-gray-500">{w.region}</td>
                   <td className="px-3 py-2.5 text-[11.5px] tabular-nums text-gray-500">{w.hours}h</td>
-                  <td className="px-3 py-2.5 text-[12px] tabular-nums font-semibold text-gray-800">{w.carbon}</td>
+                  <td className="px-3 py-2.5 text-[12px] tabular-nums font-semibold text-gray-800">
+                    {liveCarbon(w)}
+                    {w.status === "Running" && <span className="ml-1 w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse inline-block align-middle" />}
+                  </td>
                   <td className="px-3 py-2.5"><Badge color={statusColor[w.status]}>{w.status}</Badge></td>
                 </tr>
               ))}
@@ -182,16 +260,21 @@ function AIWorkloadsView() {
 // 2. Data Centers
 // ═══════════════════════════════════════════════════════════════════════════════
 function DataCentersView() {
+  const { intensityFor } = useLive();
   const indian = [...REGIONS].filter((r) => r.isIndian).sort((a, b) => a.gridIntensityGCO2 - b.gridIntensityGCO2);
   const global = [...REGIONS].filter((r) => !r.isIndian).sort((a, b) => a.gridIntensityGCO2 - b.gridIntensityGCO2);
   const ratingColor: Record<Rating, BadgeColor> = { Best: "green", Med: "amber", Low: "red" };
+
+  const indianLive = indian.map((r) => ({ r, live: Math.round(intensityFor(r.id)) }));
+  const lowest = indianLive.reduce((a, b) => (a.live <= b.live ? a : b));
+  const highest = indianLive.reduce((a, b) => (a.live >= b.live ? a : b));
 
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KPIStat label="Indian Centers"    value="6"    sub="facilities"   />
-        <KPIStat label="Lowest Intensity"  value="600"  sub="gCO₂/kWh"     note="Chennai (GCP)" />
-        <KPIStat label="Highest Intensity" value="850"  sub="gCO₂/kWh"     note="Delhi NCR" />
+        <KPIStat label="Lowest Intensity"  value={String(lowest.live)}  sub="gCO₂/kWh"  note={lowest.r.displayName.split(" (")[0]} live />
+        <KPIStat label="Highest Intensity" value={String(highest.live)} sub="gCO₂/kWh"  note={highest.r.displayName.split(" (")[0]} live />
         <KPIStat label="Avg WUE (India)"   value="1.63" sub="L/kWh"        />
       </div>
       <Card>
@@ -209,12 +292,14 @@ function DataCentersView() {
               </div>
               <div className="grid grid-cols-3 gap-2 mt-2">
                 {[
-                  { label: "Intensity", value: String(r.gridIntensityGCO2), unit: "gCO₂/kWh" },
-                  { label: "WUE",       value: String(r.wueLitersPerKWh),   unit: "L/kWh"    },
-                  { label: "PUE",       value: String(r.pue),               unit: "ratio"    },
+                  { label: "Intensity", value: String(Math.round(intensityFor(r.id))), unit: "gCO₂/kWh", live: true },
+                  { label: "WUE",       value: String(r.wueLitersPerKWh),   unit: "L/kWh", live: false },
+                  { label: "PUE",       value: String(r.pue),               unit: "ratio", live: false },
                 ].map((m) => (
                   <div key={m.label}>
-                    <p className="text-[9px] text-gray-400 uppercase tracking-wide">{m.label}</p>
+                    <p className="text-[9px] text-gray-400 uppercase tracking-wide flex items-center gap-1">
+                      {m.label}{m.live && <span className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse inline-block" />}
+                    </p>
                     <p className="text-[13px] font-bold text-gray-800 tabular-nums">{m.value}</p>
                     <p className="text-[9px] text-gray-400">{m.unit}</p>
                   </div>
@@ -240,7 +325,7 @@ function DataCentersView() {
                 <td className="px-3 py-2 text-[12px] font-medium text-gray-800">{r.displayName.split(" (")[0]}</td>
                 <td className="px-3 py-2 text-[11.5px] text-gray-500">{r.provider}</td>
                 <td className="px-3 py-2 text-[11.5px] text-gray-500">{r.country}</td>
-                <td className="px-3 py-2 text-[12px] tabular-nums font-semibold text-gray-800">{r.gridIntensityGCO2}</td>
+                <td className="px-3 py-2 text-[12px] tabular-nums font-semibold text-gray-800">{Math.round(intensityFor(r.id))}</td>
                 <td className="px-3 py-2 text-[11.5px] tabular-nums text-gray-600">{r.wueLitersPerKWh}</td>
                 <td className="px-3 py-2 text-[11.5px] tabular-nums text-gray-600">{r.pue}</td>
                 <td className="px-3 py-2"><Badge color={ratingColor[r.rating]}>{r.rating}</Badge></td>
@@ -284,13 +369,15 @@ const NEMOTRON_FORECAST_INSIGHT =
 
 function CarbonReportView() {
   const MAX_BAR = 96;
+  const scale = useLiveScale();
   const actual = MONTHLY.filter((m) => !m.forecast);
   const maxTotal = Math.max(...MONTHLY.map((m) => m.total));
   const goalLine = Math.round(actual[0].total * 0.80); // −20% from Oct baseline
+  const liveMarch = scale(20934);
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KPIStat label="March Total"    value="20,934" sub="kg CO₂e"    note="↓ 6.6% vs Feb" />
+        <KPIStat label="March Total"    value={liveMarch.toLocaleString()} sub="kg CO₂e"  note="month-to-date · live grid" live />
         <KPIStat label="YTD (2026)"     value="68,534" sub="kg CO₂e"    />
         <KPIStat label="June Forecast"  value="16,800" sub="kg CO₂e"    note="Nemotron projection" />
         <KPIStat label="Reduction Goal" value="−20%"   sub="by Dec 26"  note="On track ✓" />
@@ -349,15 +436,20 @@ function CarbonReportView() {
         <Card>
           <p className="text-xs font-semibold text-gray-900 mb-4">March Breakdown by Source</p>
           <div className="space-y-4">
-            {BY_SOURCE.map((s) => (
-              <div key={s.label}>
-                <div className="flex justify-between items-center mb-1">
-                  <span className="text-[11px] text-gray-600">{s.label}</span>
-                  <span className="text-[11px] font-semibold text-gray-800 tabular-nums">{s.value.toLocaleString()} kg</span>
+            {BY_SOURCE.map((s) => {
+              // Grid electricity tracks the live grid; other sources are fixed.
+              const isGrid = s.label.startsWith("Electricity");
+              const val = isGrid ? scale(s.value) : s.value;
+              return (
+                <div key={s.label}>
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-[11px] text-gray-600 flex items-center gap-1.5">{s.label}{isGrid && <LiveTag />}</span>
+                    <span className="text-[11px] font-semibold text-gray-800 tabular-nums">{val.toLocaleString()} kg</span>
+                  </div>
+                  <BarPct pct={s.pct} color={s.color} />
                 </div>
-                <BarPct pct={s.pct} color={s.color} />
-              </div>
-            ))}
+              );
+            })}
           </div>
         </Card>
       </div>
@@ -376,22 +468,26 @@ const SCOPES = [
 const SCOPE_TOTAL = 20934;
 
 function ScopesView() {
+  const scale = useLiveScale();
+  // Scope 2 (purchased electricity) tracks the live grid; recompute the total.
+  const liveScopes = SCOPES.map((s) => ({ ...s, liveValue: s.num === "2" ? scale(s.value) : s.value, live: s.num === "2" }));
+  const liveTotal = liveScopes.reduce((a, s) => a + s.liveValue, 0);
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        {SCOPES.map((s) => {
-          const pct = Math.round((s.value / SCOPE_TOTAL) * 100);
+        {liveScopes.map((s) => {
+          const pct = Math.round((s.liveValue / liveTotal) * 100);
           return (
             <Card key={s.num}>
               <div className="flex items-center gap-2 mb-3">
                 <span className="text-xl">{s.icon}</span>
                 <div>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Scope {s.num}</p>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide flex items-center gap-1.5">Scope {s.num}{s.live && <LiveTag />}</p>
                   <p className="text-[12px] font-semibold text-gray-900">{s.label}</p>
                 </div>
               </div>
               <div className="flex items-baseline gap-1.5 mb-2">
-                <span className="text-2xl font-bold text-gray-900 tabular-nums leading-none">{s.value.toLocaleString()}</span>
+                <span className="text-2xl font-bold text-gray-900 tabular-nums leading-none">{s.liveValue.toLocaleString()}</span>
                 <span className="text-[11px] text-gray-400">kg CO₂e</span>
                 <span className="text-[11px] text-gray-400 ml-auto">{pct}%</span>
               </div>
@@ -404,11 +500,11 @@ function ScopesView() {
       <Card>
         <p className="text-xs font-semibold text-gray-900 mb-5">GHG Scope Breakdown — March 2026</p>
         <div className="flex items-end gap-6 px-4" style={{ height: "120px" }}>
-          {SCOPES.map((s) => {
-            const pct = s.value / SCOPE_TOTAL;
+          {liveScopes.map((s) => {
+            const pct = s.liveValue / liveTotal;
             return (
               <div key={s.num} className="flex flex-col items-center gap-1.5 flex-1">
-                <span className="text-[9px] text-gray-500 tabular-nums">{s.value.toLocaleString()}</span>
+                <span className="text-[9px] text-gray-500 tabular-nums">{s.liveValue.toLocaleString()}</span>
                 <div
                   className={clsx("w-full rounded-t", s.barColor)}
                   style={{ height: `${Math.max(pct * 90, 8)}px` }}
@@ -436,13 +532,22 @@ const OFFSET_PROJECTS = [
 const TYPE_ICON: Record<string, string> = { Solar: "☀️", Wind: "🌬️", Forest: "🌳", Hydrogen: "⚗️", Biogas: "♻️" };
 
 function OffsetsView() {
+  const scale = useLiveScale();
+  // Live gross emissions (t) month-to-date → credits required to neutralize.
+  const liveGrossT = scale(20934) / 1000;
+  const creditsToNeutralize = Math.ceil(liveGrossT);
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KPIStat label="Credit Balance"    value="2,840" sub="tonnes CO₂e"  />
         <KPIStat label="Retired (Mar 26)"  value="420"   sub="credits"      />
         <KPIStat label="Portfolio Value"   value="₹2.4M" sub=""             />
-        <KPIStat label="Net Position"      value="+2,420" sub="credits"     note="Post retirement" />
+        <KPIStat label="Credits to Neutralize" value={creditsToNeutralize.toLocaleString()} sub="t CO₂e" note="at live emission rate" live />
+      </div>
+      <div className="bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-200 rounded-xl px-4 py-2.5 flex items-center gap-2 text-[11.5px] text-emerald-800">
+        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse inline-block" />
+        At the current live grid intensity, this month is tracking <span className="font-bold">{liveGrossT.toFixed(1)} t CO₂e</span> gross —
+        retiring <span className="font-bold">{creditsToNeutralize} credits</span> would keep you carbon-neutral.
       </div>
       <Card>
         <p className="text-xs font-semibold text-gray-900 mb-4">Available Offset Projects — India</p>
@@ -483,12 +588,13 @@ function OffsetsView() {
 // 6. Water Usage
 // ═══════════════════════════════════════════════════════════════════════════════
 function WaterUsageView() {
+  const scale = useLiveScale();
   const sorted = [...REGIONS].sort((a, b) => a.wueLitersPerKWh - b.wueLitersPerKWh);
   const maxWUE = Math.max(...REGIONS.map((r) => r.wueLitersPerKWh));
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KPIStat label="March Consumption"   value="28,400"  sub="liters"       note="↓ 4% vs Feb"     />
+        <KPIStat label="March Consumption"   value={scale(28400).toLocaleString()}  sub="liters"  note="month-to-date · live load" live />
         <KPIStat label="Avg WUE (Fleet)"     value="1.63"    sub="L/kWh"        />
         <KPIStat label="Best WUE Region"     value="0.2"     sub="L/kWh"        note="Finland (GCP)"   />
         <KPIStat label="High-Stress Regions" value="2"       sub="regions"      note="Mumbai · Delhi"  />
@@ -539,15 +645,17 @@ const GPU_FLEET = [
   { name: "T4",         powerW: 70,  tflops: 65,   inUse: 48,  util: 91, carbonPerJob: 2.9,  embodied: 420,   fab: "TSMC 12nm (Taiwan)",  refurb: true  },
 ];
 
-// Wasted carbon per day = powerW × (1 - util/100) × 24h × 0.75 kgCO₂/kWh ÷ 1000
-function wastedCarbonKg(powerW: number, util: number): number {
-  return Math.round(powerW * (1 - util / 100) * 24 * 0.75 / 1000 * 10) / 10;
+// Wasted carbon per day = powerW × (1 - util/100) × 24h × gridIntensity(kg/kWh) ÷ 1000
+function wastedCarbonKg(powerW: number, util: number, gridKgPerKWh = 0.75): number {
+  return Math.round(powerW * (1 - util / 100) * 24 * gridKgPerKWh / 1000 * 10) / 10;
 }
 
 function GPUEfficiencyView() {
+  const { fleetIntensity } = useLive();
+  const gridKgPerKWh = fleetIntensity / 1000; // live grid intensity in kg/kWh
   const effColor = (u: number): BadgeColor => u >= 85 ? "green" : u >= 70 ? "amber" : "red";
   const stranded = GPU_FLEET.filter((g) => g.util < 60);
-  const totalWastedCarbon = stranded.reduce((acc, g) => acc + wastedCarbonKg(g.powerW, g.util) * g.inUse, 0);
+  const totalWastedCarbon = stranded.reduce((acc, g) => acc + wastedCarbonKg(g.powerW, g.util, gridKgPerKWh) * g.inUse, 0);
   const TH = ["GPU Model", "TDP", "TFlops", "Units", "Utilization", "Wasted Carbon/day (kg)", "Carbon/Job", "Grade"];
   return (
     <div className="space-y-5">
@@ -555,7 +663,7 @@ function GPUEfficiencyView() {
         <KPIStat label="Fleet Avg Utilization" value="84"   sub="%"     note="↑ 3% vs last week"     />
         <KPIStat label="Total GPUs in Fleet"   value="888"  sub="GPUs"  />
         <KPIStat label="Stranded GPUs"         value={String(stranded.reduce((a,g)=>a+g.inUse,0))} sub="units" note="< 60% utilization" />
-        <KPIStat label="Daily Wasted Carbon"   value={totalWastedCarbon.toFixed(0)} sub="kg CO₂e" note="Emitted for zero output" />
+        <KPIStat label="Daily Wasted Carbon"   value={totalWastedCarbon.toFixed(0)} sub="kg CO₂e" note="At live grid intensity" live />
       </div>
 
       {/* Stranded capacity alert */}
@@ -585,7 +693,7 @@ function GPUEfficiencyView() {
               {GPU_FLEET.map((g) => {
                 const isStranded = g.util < 60;
                 const barColor = isStranded ? "bg-red-400" : g.util >= 85 ? "bg-green-500" : "bg-amber-400";
-                const wasted = wastedCarbonKg(g.powerW, g.util);
+                const wasted = wastedCarbonKg(g.powerW, g.util, gridKgPerKWh);
                 return (
                   <tr key={g.name} className={clsx("border-b border-gray-50 hover:bg-gray-50 transition-colors", isStranded && "bg-red-50/40")}>
                     <td className="px-3 py-2.5">
@@ -686,19 +794,32 @@ const ENERGY_PROVIDERS = [
 ];
 
 function EnergyMixView() {
+  const { fleetIntensity, baselineFleetIntensity } = useLive();
+  // Cleaner grid (lower live intensity) ⇒ higher renewable share, and vice-versa.
+  const ratio = fleetIntensity > 0 ? baselineFleetIntensity / fleetIntensity : 1;
+  const liveProviders = ENERGY_PROVIDERS.map((ep) => {
+    if (ep.name !== "Indian Grid") return { ...ep, live: false };
+    const renewPct = Math.max(20, Math.min(75, Math.round(ep.renewPct * ratio)));
+    const remainder = 100 - renewPct;
+    // Keep coal:gas roughly proportional to the original split.
+    const coalPct = Math.round(remainder * (ep.coalPct / (ep.coalPct + ep.gasPct)));
+    return { ...ep, renewPct, coalPct, gasPct: remainder - coalPct, live: true };
+  });
+  const indianRenew = liveProviders.find((p) => p.name === "Indian Grid")!.renewPct;
+  const fleetRenewAvg = Math.round((94 + 90 + 85 + indianRenew) / 4);
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KPIStat label="Fleet Renewable Avg" value="85"   sub="%" note="↑ 4% vs Q4 '25"         />
+        <KPIStat label="Fleet Renewable Avg" value={String(fleetRenewAvg)} sub="%" note="tracks live grid mix" live />
         <KPIStat label="Coal Dependency"     value="11"   sub="%" note="↓ 2% vs Q4 '25"         />
         <KPIStat label="Best Provider"       value="GCP"  sub=""  note="94% renewable"          />
         <KPIStat label="Carbon Avoided"      value="3,240" sub="t CO₂e/mo" note="vs national grid" />
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        {ENERGY_PROVIDERS.map((ep) => (
+        {liveProviders.map((ep) => (
           <Card key={ep.name} className={clsx("border", ep.border)}>
             <div className="flex items-center justify-between mb-4">
-              <p className={clsx("text-sm font-bold", ep.textColor)}>{ep.name}</p>
+              <p className={clsx("text-sm font-bold flex items-center gap-1.5", ep.textColor)}>{ep.name}{ep.live && <LiveTag />}</p>
               <span className={clsx("text-2xl font-black tabular-nums", ep.textColor)}>{ep.renewPct}%</span>
             </div>
             <div className="space-y-2.5">
@@ -739,6 +860,7 @@ const REPORT_TYPE_COLOR: Record<string, BadgeColor> = { ESG: "green", CDP: "blue
 const REPORT_STATUS_COLOR: Record<ReportStatus, BadgeColor> = { Published: "green", Verified: "blue", "In Progress": "amber" };
 
 function ESGReportsView() {
+  const scale = useLiveScale();
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -746,6 +868,11 @@ function ESGReportsView() {
         <KPIStat label="ESG Score"         value="82"     sub="/ 100"       note="↑ 5 vs 2025"    />
         <KPIStat label="CDP Rating"        value="A−"     sub="2025 cycle"  />
         <KPIStat label="Next Filing"       value="Apr 30" sub=""            note="BRSR Core"      />
+      </div>
+      <div className="bg-gradient-to-r from-violet-50 to-indigo-50 border border-violet-200 rounded-xl px-4 py-2.5 flex items-center gap-2 text-[11.5px] text-violet-800">
+        <span className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse inline-block" />
+        Q2 2026 ESG Report (draft) is auto-ingesting live telemetry — current emissions figure
+        <span className="font-bold mx-1">{(scale(20934) / 1000).toFixed(2)} t CO₂e</span> (month-to-date, live grid).
       </div>
       <Card>
         <p className="text-xs font-semibold text-gray-900 mb-4">Report Library</p>
@@ -807,21 +934,40 @@ const AUDIT_LOG: { time: string; event: string; detail: string; user: string; ty
 ];
 
 function AuditTrailView() {
+  const { fleetIntensity, source } = useLive();
+  const [now, setNow] = React.useState<Date | null>(null);
+  React.useEffect(() => {
+    setNow(new Date());
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const istTime = now
+    ? now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true })
+    : "—";
+  // A synthetic, always-current audit entry reflecting the live grid read.
+  const liveEntry = {
+    time: istTime,
+    event: "Live Grid Read",
+    detail: `Fleet grid intensity sampled → ${Math.round(fleetIntensity)} gCO₂/kWh (${source === "live" ? "Electricity Maps API" : "simulated feed"})`,
+    user: "system@bharatgreen.ai",
+    type: "calc" as AuditType,
+  };
+  const log = [liveEntry, ...AUDIT_LOG];
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KPIStat label="Analyses Today"  value="6"       sub="calculations" />
+        <KPIStat label="Analyses Today"  value={String(6 + 1)} sub="calculations" />
         <KPIStat label="API Calls (Mar)" value="142"     sub="total"        />
         <KPIStat label="Active Users"    value="3"       sub="team members" />
-        <KPIStat label="Last Activity"   value="11:57 PM" sub="today · IST" />
+        <KPIStat label="Last Activity"   value={istTime} sub="now · IST" live />
       </div>
       <Card>
         <div className="flex items-center justify-between mb-4">
-          <p className="text-xs font-semibold text-gray-900">Activity Log — March 20, 2026</p>
+          <p className="text-xs font-semibold text-gray-900">Activity Log — Live</p>
           <span className="text-[10px] text-gray-400">All times IST</span>
         </div>
         <div className="space-y-0.5">
-          {AUDIT_LOG.map((e, i) => {
+          {log.map((e, i) => {
             const style = AUDIT_STYLE[e.type];
             return (
               <div key={i} className="flex items-start gap-3 py-2.5 border-b border-gray-50 last:border-0">
@@ -830,7 +976,10 @@ function AuditTrailView() {
                   {style.icon}
                 </span>
                 <div className="flex-1 min-w-0">
-                  <p className="text-[11.5px] font-semibold text-gray-800">{e.event}</p>
+                  <p className="text-[11.5px] font-semibold text-gray-800 flex items-center gap-1.5">
+                    {e.event}
+                    {i === 0 && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse inline-block" />}
+                  </p>
                   <p className="text-[10.5px] text-gray-400 truncate">{e.detail}</p>
                 </div>
                 <span className="text-[10px] text-gray-400 flex-shrink-0 hidden md:block">{e.user}</span>
@@ -858,12 +1007,19 @@ const MAX_CURVE = Math.max(...HOUR_CURVE);
 const MIN_CURVE = Math.min(...HOUR_CURVE);
 
 function GreenSchedulerView() {
-  const totalSaved = SCHEDULE_JOBS.reduce((acc, j) => acc + (j.nowCarbon - j.optCarbon), 0);
+  const scale = useLiveScale();
+  // "Now" carbon tracks the live grid; the optimized (best-window) figure is fixed.
+  const liveJobs = SCHEDULE_JOBS.map((j) => {
+    const liveNow = scale(j.nowCarbon, j.nowCarbon < 100 ? 1 : 0);
+    const savings = liveNow > 0 ? Math.max(0, Math.round((1 - j.optCarbon / liveNow) * 100)) : j.savings;
+    return { ...j, liveNow, liveSavings: savings };
+  });
+  const totalSaved = liveJobs.reduce((acc, j) => acc + (j.liveNow - j.optCarbon), 0);
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KPIStat label="Jobs to Optimize"    value={String(SCHEDULE_JOBS.length)} sub="pending"    />
-        <KPIStat label="Potential Savings"   value={totalSaved.toFixed(0)}        sub="kg CO₂e"   note="If all jobs rescheduled" />
+        <KPIStat label="Potential Savings"   value={totalSaved.toFixed(0)}        sub="kg CO₂e"   note="At live grid intensity" live />
         <KPIStat label="Optimal Time Window" value="02:45–05:00"                  sub="IST"       note="Indian grid minimum" />
         <KPIStat label="Avg Savings/Job"     value="31%"                          sub="reduction" />
       </div>
@@ -901,14 +1057,17 @@ function GreenSchedulerView() {
               </tr>
             </thead>
             <tbody>
-              {SCHEDULE_JOBS.map((j) => (
+              {liveJobs.map((j) => (
                 <tr key={j.name} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
                   <td className="px-3 py-2.5 text-[12px] font-medium text-gray-800">{j.name}</td>
                   <td className="px-3 py-2.5 text-[11.5px] text-gray-500">{j.region}</td>
                   <td className="px-3 py-2.5 text-[12px] font-semibold text-green-700">{j.bestHour} IST</td>
-                  <td className="px-3 py-2.5 text-[12px] tabular-nums text-gray-700">{j.nowCarbon.toLocaleString()}</td>
+                  <td className="px-3 py-2.5 text-[12px] tabular-nums text-gray-700">
+                    {j.liveNow.toLocaleString()}
+                    <span className="ml-1 w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse inline-block align-middle" />
+                  </td>
                   <td className="px-3 py-2.5 text-[12px] tabular-nums font-semibold text-green-700">{j.optCarbon.toLocaleString()}</td>
-                  <td className="px-3 py-2.5"><Badge color="green">−{j.savings}%</Badge></td>
+                  <td className="px-3 py-2.5"><Badge color="green">−{j.liveSavings}%</Badge></td>
                   <td className="px-3 py-2.5">
                     <button className="text-[10.5px] text-green-700 font-semibold border border-green-200 bg-green-50 px-2.5 py-1 rounded hover:bg-green-100 transition-colors">
                       Schedule
@@ -949,17 +1108,22 @@ const COMPARE_JOBS = [
 ];
 
 function WorkloadCompareView() {
-  const maxCarbon = Math.max(...COMPARE_JOBS.map((j) => j.carbon));
+  const scale = useLiveScale();
+  // Carbon tracks the live grid; energy/water/cost are load-bound and stay fixed.
+  const liveJobs = COMPARE_JOBS.map((j) => ({ ...j, carbon: scale(j.carbon, j.carbon < 100 ? 1 : 0) }));
+  const maxCarbon = Math.max(...liveJobs.map((j) => j.carbon));
+  const lowest = liveJobs.reduce((a, b) => (a.carbon <= b.carbon ? a : b));
+  const highest = liveJobs.reduce((a, b) => (a.carbon >= b.carbon ? a : b));
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KPIStat label="Jobs Compared"    value="3"      sub="workloads"  />
-        <KPIStat label="Lowest Carbon"    value="2.1"    sub="kg CO₂e"    note="BERT Classifier" />
-        <KPIStat label="Highest Carbon"   value="2,304"  sub="kg CO₂e"    note="LLaMA-3 Fine-tune" />
+        <KPIStat label="Lowest Carbon"    value={lowest.carbon.toLocaleString()}  sub="kg CO₂e" note="BERT Classifier" live />
+        <KPIStat label="Highest Carbon"   value={highest.carbon.toLocaleString()} sub="kg CO₂e" note="LLaMA-3 Fine-tune" live />
         <KPIStat label="Range"            value="1,097×" sub="difference" note="Critical gap" />
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {COMPARE_JOBS.map((j, i) => (
+        {liveJobs.map((j, i) => (
           <Card key={i}>
             <div className="flex items-start justify-between mb-3">
               <p className="text-[12px] font-bold text-gray-900 whitespace-pre-line">{j.label}</p>
@@ -998,10 +1162,11 @@ function WorkloadCompareView() {
 // 13. Carbon Passport
 // ═══════════════════════════════════════════════════════════════════════════════
 function CarbonPassportView() {
+  const scale = useLiveScale();
   const passportId = "BGP-2026-IND-078342";
   const issued = "March 20, 2026";
   const org = "NVIDIA India · BharatGreen AI";
-  const periodCarbon = 20934;
+  const periodCarbon = scale(20934);
   const periodEnergy = 27912;
   const periodWater = 41869;
   const periodOffset = 8374;
@@ -1011,9 +1176,9 @@ function CarbonPassportView() {
     <div className="space-y-5">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KPIStat label="Passport ID"      value={passportId}                       sub=""         />
-        <KPIStat label="Gross Emissions"  value={periodCarbon.toLocaleString()}     sub="kg CO₂e"  note="March 2026" />
+        <KPIStat label="Gross Emissions"  value={periodCarbon.toLocaleString()}     sub="kg CO₂e"  note="month-to-date · live grid" live />
         <KPIStat label="Credits Retired"  value={periodOffset.toLocaleString()}     sub="kg CO₂e" />
-        <KPIStat label="Net Position"     value={netCarbon.toLocaleString()}        sub="kg CO₂e"  note="Verified Net" />
+        <KPIStat label="Net Position"     value={netCarbon.toLocaleString()}        sub="kg CO₂e"  note="Verified Net" live />
       </div>
       <Card className="relative overflow-hidden">
         <div className="absolute top-0 right-0 w-32 h-32 bg-green-50 rounded-bl-full opacity-60" />
@@ -1101,6 +1266,11 @@ const BRSR_FIELDS = [
 ];
 
 function BRSRComplianceView() {
+  const scale = useLiveScale();
+  // Scope 2 GHG (purchased electricity) is auto-filled from the live grid read.
+  const liveFields = BRSR_FIELDS.map((f) =>
+    f.kpi.startsWith("Scope 2") ? { ...f, value: `${scale(14.65, 2)} t`, live: true } : { ...f, live: false }
+  );
   const filled  = BRSR_FIELDS.filter((f) => f.status === "filled").length;
   const partial = BRSR_FIELDS.filter((f) => f.status === "partial").length;
   const missing = BRSR_FIELDS.filter((f) => f.status === "missing").length;
@@ -1141,11 +1311,13 @@ function BRSRComplianceView() {
             </tr>
           </thead>
           <tbody>
-            {BRSR_FIELDS.map((f, i) => (
+            {liveFields.map((f, i) => (
               <tr key={i} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
                 <td className="px-3 py-2.5 text-[10px] text-gray-400 whitespace-nowrap">{f.section}</td>
                 <td className="px-3 py-2.5 text-[11.5px] font-medium text-gray-800">{f.kpi}</td>
-                <td className="px-3 py-2.5 text-[12px] tabular-nums font-semibold text-gray-700">{f.value}</td>
+                <td className="px-3 py-2.5 text-[12px] tabular-nums font-semibold text-gray-700">
+                  <span className="inline-flex items-center gap-1.5">{f.value}{f.live && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse inline-block" />}</span>
+                </td>
                 <td className="px-3 py-2.5">
                   <Badge color={statusColor[f.status]}>{f.status.charAt(0).toUpperCase() + f.status.slice(1)}</Badge>
                 </td>
@@ -1171,23 +1343,25 @@ const TEAM_MEMBERS = [
 ];
 
 function TeamLeaderboardView() {
-  const totalCarbon = TEAM_MEMBERS.reduce((a, m) => a + m.carbon, 0);
-  const avgCarbon = Math.round(totalCarbon / TEAM_MEMBERS.length);
-  const maxMemberCarbon = Math.max(...TEAM_MEMBERS.map((m) => m.carbon));
+  const scale = useLiveScale();
+  const liveMembers = TEAM_MEMBERS.map((m) => ({ ...m, carbon: scale(m.carbon) }));
+  const totalCarbon = liveMembers.reduce((a, m) => a + m.carbon, 0);
+  const avgCarbon = Math.round(totalCarbon / liveMembers.length);
+  const maxMemberCarbon = Math.max(...liveMembers.map((m) => m.carbon));
 
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KPIStat label="Team Members"    value={String(TEAM_MEMBERS.length)}   sub="active"          />
-        <KPIStat label="Total Emissions" value={totalCarbon.toLocaleString()}  sub="kg CO₂e/month"   />
-        <KPIStat label="Avg per Member"  value={avgCarbon.toLocaleString()}    sub="kg CO₂e/month"   />
+        <KPIStat label="Total Emissions" value={totalCarbon.toLocaleString()}  sub="kg CO₂e/month"  note="month-to-date · live grid" live />
+        <KPIStat label="Avg per Member"  value={avgCarbon.toLocaleString()}    sub="kg CO₂e/month"  live />
         <KPIStat label="Champion Saver"  value={TEAM_MEMBERS[0].name.split(" ")[0]} sub=""          note={`−${TEAM_MEMBERS[0].saving}% this month`} />
       </div>
       <Card>
-        <p className="text-xs font-semibold text-gray-900 mb-2">Carbon Leaderboard — March 2026</p>
+        <p className="text-xs font-semibold text-gray-900 mb-2">Carbon Leaderboard — Live (month-to-date)</p>
         <p className="text-[10.5px] text-gray-400 mb-4">Ranked by lowest carbon emissions per workload. Lower is better.</p>
         <div className="space-y-2">
-          {TEAM_MEMBERS.map((m) => {
+          {liveMembers.map((m) => {
             const pct = (m.carbon / maxMemberCarbon) * 100;
             const barColor = m.rank === 1 ? "bg-amber-400" : m.rank === 2 ? "bg-gray-400" : m.rank === 3 ? "bg-orange-300" : m.rank <= 4 ? "bg-blue-400" : "bg-red-300";
             return (
@@ -1295,6 +1469,8 @@ const GATE_RUNS = [
 type DemoStep = "idle" | "queued" | "estimating" | "blocked" | "passed";
 
 function CICDCarbonGateView() {
+  const { intensityFor } = useLive();
+  const mumbaiLive = Math.round(intensityFor("aws-ap-south-1"));
   const [threshold, setThreshold] = React.useState(35);
   const [demoStep, setDemoStep] = React.useState<DemoStep>("idle");
   const [demoCarbon, setDemoCarbon] = React.useState(0);
@@ -1312,7 +1488,7 @@ function CICDCarbonGateView() {
       { delay: 900,  step: "queued" as DemoStep,     log: "  Checking out SHA: e4f5a6b...",                        color: "#94a3b8" },
       { delay: 1400, step: "estimating" as DemoStep, log: "⚡ BharatGreen Carbon Gate starting pre-flight...",      color: "#fbbf24" },
       { delay: 1900, step: "estimating" as DemoStep, log: "  GPU: 8× H100 SXM5 · Region: Mumbai (IN-WE)",         color: "#94a3b8" },
-      { delay: 2400, step: "estimating" as DemoStep, log: "  Duration: 6h · Grid: 748 gCO₂/kWh (LIVE)",           color: "#4ade80" },
+      { delay: 2400, step: "estimating" as DemoStep, log: `  Duration: 6h · Grid: ${mumbaiLive} gCO₂/kWh (LIVE)`,           color: "#4ade80" },
       { delay: 2900, step: "estimating" as DemoStep, log: "  Calculating: 8 × 700W × 6h × 0.748 kg/kWh ...",      color: "#94a3b8" },
       { delay: 3500, step: "estimating" as DemoStep, carbonVal: 52, log: `  Estimated carbon: ${carbonEst.toFixed(1)} kg CO₂e`,       color: "#f87171" },
       { delay: 4100, step: (shouldBlock ? "blocked" : "passed") as DemoStep, carbonVal: 52, log: `  Threshold: ${threshold} kg CO₂e`,       color: "#94a3b8" },
@@ -1345,7 +1521,7 @@ function CICDCarbonGateView() {
         setLogLines((prev) => [...prev, { line: log, color }]);
       }, delay);
     });
-  }, [threshold]);
+  }, [threshold, mumbaiLive]);
 
   const runPassDemo = React.useCallback(() => {
     setDemoStep("queued");

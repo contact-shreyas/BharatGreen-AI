@@ -25,6 +25,7 @@ load_dotenv()
 from routers.workloads import router as workloads_router
 from routers.regions import router as regions_router
 from routers.prompt import router as prompt_router
+from routers.agent import router as agent_router
 
 logging.basicConfig(
     level=logging.INFO,
@@ -94,6 +95,7 @@ app.add_middleware(
 app.include_router(workloads_router, prefix="/api/v1")
 app.include_router(regions_router, prefix="/api/v1")
 app.include_router(prompt_router, prefix="/api/v1")
+app.include_router(agent_router, prefix="/api/v1")
 
 
 # ── Health check ──────────────────────────────────────────────────────────────

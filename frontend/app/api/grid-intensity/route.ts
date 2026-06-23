@@ -8,12 +8,20 @@ import { NextResponse } from "next/server";
 // Map our region IDs → Electricity Maps zone codes
 // https://api.electricitymap.org/v3/zones
 const ZONE_MAP: Record<string, string> = {
-  "aws-ap-south-1":     "IN-WE",   // Mumbai    → India West
-  "azure-south-india":  "IN-SO",   // Hyderabad → India South
-  "gcp-asia-south2":    "IN-SO",   // Chennai   → India South
-  "gcp-asia-south1":    "IN-SO",   // Bengaluru → India South
-  "azure-central-india":"IN-WE",   // Pune      → India West
-  "delhi-ncr":          "IN-NO",   // Delhi     → India North
+  // ── Indian deployment zones ──────────────────────────────────────────────
+  "aws-ap-south-1":     "IN-WE",        // Mumbai    → India West
+  "azure-south-india":  "IN-SO",        // Hyderabad → India South
+  "gcp-asia-south2":    "IN-SO",        // Chennai   → India South
+  "gcp-asia-south1":    "IN-SO",        // Bengaluru → India South
+  "azure-central-india":"IN-WE",        // Pune      → India West
+  "delhi-ncr":          "IN-NO",        // Delhi     → India North
+  // ── Global comparison zones (best-effort; simulate if not in your plan) ──
+  "gcp-europe-north1":  "FI",           // Finland
+  "aws-eu-north-1":     "SE",           // Stockholm, Sweden
+  "aws-eu-west-3":      "FR",           // Paris, France
+  "aws-us-west-2":      "US-NW-PACW",   // Oregon
+  "aws-us-east-1":      "US-MIDA-PJM",  // Virginia
+  "gcp-us-central1":    "US-MIDW-MISO", // Iowa
 };
 
 // Fallback base intensities (gCO₂eq/kWh) when API unavailable
@@ -24,6 +32,12 @@ const FALLBACK: Record<string, number> = {
   "gcp-asia-south1":     650,
   "azure-central-india": 780,
   "delhi-ncr":           850,
+  "gcp-europe-north1":   26,
+  "aws-eu-north-1":      45,
+  "aws-eu-west-3":       85,
+  "aws-us-west-2":       118,
+  "aws-us-east-1":       320,
+  "gcp-us-central1":     380,
 };
 
 export async function GET(req: Request) {

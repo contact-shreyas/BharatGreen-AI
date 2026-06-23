@@ -20,6 +20,7 @@ import {
   Trophy,
   GitBranch,
   Wand2,
+  Bot,
 } from "lucide-react";
 import clsx from "clsx";
 
@@ -50,6 +51,7 @@ const NAV: NavSection[] = [
   {
     title: "GREEN AI",
     items: [
+      { label: "Auto-Optimizer",  icon: <Bot size={15} /> },
       { label: "Prompt Optimizer", icon: <Wand2 size={15} /> },
     ],
   },
