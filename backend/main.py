@@ -39,7 +39,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     logger.info("BharatGreen AI backend starting up…")
     logger.info(
         "NVIDIA Nemotron model: %s",
-        os.getenv("NVIDIA_MODEL", "nvidia/llama-3.1-nemotron-70b-instruct"),
+        os.getenv("NVIDIA_MODEL", "nvidia/nemotron-mini-4b-instruct"),
     )
     _provider = os.getenv("LLM_PROVIDER", "gemini").strip().lower()
     _answer_key = (

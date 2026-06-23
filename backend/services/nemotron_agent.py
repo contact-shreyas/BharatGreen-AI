@@ -21,7 +21,7 @@ from data.regional_data import REGION_CATALOG
 
 logger = logging.getLogger(__name__)
 
-_NVIDIA_MODEL = os.getenv("NVIDIA_MODEL", "nvidia/llama-3.1-nemotron-70b-instruct")
+_NVIDIA_MODEL = os.getenv("NVIDIA_MODEL", "nvidia/nemotron-mini-4b-instruct")
 _NVIDIA_BASE_URL = os.getenv("NVIDIA_API_BASE_URL", "https://integrate.api.nvidia.com/v1")
 _NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY", "")
 
@@ -201,6 +201,7 @@ async def run_nemotron_analysis(
             ],
             temperature=0.2,
             max_tokens=1_200,
+            timeout=18,
         )
         return completion.choices[0].message.content or _mock_analysis(req, metrics, region, scenarios)
     except Exception as exc:  # noqa: BLE001

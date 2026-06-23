@@ -7,12 +7,21 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
     envVars:
+      # Secrets — set the VALUES in the Render dashboard (sync:false keeps them out of git)
       - key: NVIDIA_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
         sync: false
       - key: NVIDIA_API_BASE_URL
         value: https://integrate.api.nvidia.com/v1
+      # Must be a FAST instruct model — the UI aborts agent calls at ~20s.
+      # 70b-instruct 404s on this account; nano/super/ultra are slow reasoning models.
       - key: NVIDIA_MODEL
-        value: nvidia/llama-3.1-nemotron-70b-instruct
+        value: nvidia/nemotron-mini-4b-instruct
+      - key: LLM_PROVIDER
+        value: gemini
+      - key: GEMINI_MODEL
+        value: gemini-2.5-flash
       - key: CORS_ORIGINS
         value: "*"
       - key: PYTHON_VERSION
